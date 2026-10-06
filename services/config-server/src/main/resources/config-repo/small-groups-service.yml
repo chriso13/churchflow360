@@ -1,0 +1,80 @@
+# ============================================================
+# Small Groups Service — Config Server Configuration
+# Place in: config-server/src/main/resources/configurations/
+# Service port: 8088
+# Database: church360_small_groups
+# ============================================================
+
+server:
+  port: 8088
+
+spring:
+  application:
+    name: small-groups-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/church360_small_groups
+    username: churchflow360
+    password: churchflow360pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+jwt:
+  secret: ${JWT_SECRET:360ChurchFlowSecretKey2026SuperSecureMinimum256BitsLong!!}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  info:
+    title: Small Groups Service API
+    description: Church small groups and cell group management
+    version: 1.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.churchflow360.smallgroups: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN

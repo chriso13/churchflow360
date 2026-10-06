@@ -1,0 +1,66 @@
+# ==============================================================================
+# 360 Church Flow - Config Server
+# resources/application.yml
+#
+# FIX: spring.profiles.active inside application.yml is processed too late
+# for Spring Cloud Config Server to switch backends. The native profile must
+# be activated via:
+#   Option A) SPRING_PROFILES_ACTIVE=native  environment variable (recommended)
+#   Option B) VM option:  -Dspring.profiles.active=native
+#   Option C) bootstrap.yml  (see bootstrap.yml file)
+#
+# This file now explicitly configures BOTH backends so whichever profile
+# is active, the correct one is used.
+# ==============================================================================
+
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+
+  cloud:
+    config:
+      server:
+        # ── Native (filesystem) backend — active when profile = native ──────
+        native:
+          search-locations: classpath:/config-repo
+
+        # ── Git backend — disabled for local dev by leaving uri empty ───────
+        # Uncomment and fill in when deploying to staging/prod with GitHub
+        # git:
+        #   uri: https://github.com/your-org/churchflow360-config-repo
+        #   default-label: main
+
+        # Fail fast so a misconfigured backend surfaces immediately
+        fail-on-error: false
+
+info:
+  app:
+    name: Config Server
+    description: Centralized configuration service for Churchflow360
+    version: 1.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.config: DEBUG
+    com.churchflow360: INFO
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: false
+  instance:
+    prefer-ip-address: true

@@ -1,0 +1,44 @@
+# ==============================================================================
+# 360 Church Flow - Eureka Server
+# Local Development Configuration
+# ==============================================================================
+
+server:
+  port: 8761
+
+spring:
+  application:
+    name: eureka-server
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+  server:
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 2000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.netflix.eureka: INFO
+    com.netflix.discovery: INFO
+    org.springframework.cloud.netflix.eureka: DEBUG
+
+info:
+  app:
+    name: "360 Church Eureka Server"
+    version: "1.0.0"
+    description: "Service Discovery Server for 360 Church Flow Microservices"

@@ -1,0 +1,222 @@
+# ==============================================================================
+# 360 Church Flow — Docker Compose
+# Infrastructure: PostgreSQL, MongoDB, Zookeeper, Kafka, Kafka UI, Mailhog
+#
+# Usage:
+#   docker compose up -d          → start all containers
+#   docker compose down           → stop all containers
+#   docker compose down -v        → stop + wipe all data volumes
+#   docker compose logs -f kafka  → tail a specific container
+#
+# Databases created by init-db.sql:
+#   church360_members | church360_attendance | church360_pastoral
+#   church360_finance | church360_auth
+#
+# MongoDB databases created by init-mongo.js:
+#   church360_events | church360_notifications
+#
+# Mail:
+#   Mailhog SMTP : localhost:1025  (Spring Boot services send mail here)
+#   Mailhog UI   : http://localhost:8025  (view emails in browser)
+# ==============================================================================
+
+name: churchflow360
+
+services:
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # PostgreSQL 16
+  # Used by: member-service, attendance-service, pastoral-meeting-service,
+  #          finance-service, auth-service
+  # ════════════════════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: churchflow360-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: churchflow360
+      POSTGRES_PASSWORD: churchflow360pass
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U churchflow360 -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - churchflow360-net
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # MongoDB 7
+  # Used by: event-service (church360_events)
+  #          notification-service (church360_notifications)
+  # ════════════════════════════════════════════════════════════════════════════
+  mongodb:
+    image: mongo:7-jammy
+    container_name: churchflow360-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: churchflow360
+      MONGO_INITDB_ROOT_PASSWORD: mongo_secret
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    healthcheck:
+      test:
+        - "CMD"
+        - "mongosh"
+        - "--quiet"
+        - "--username"
+        - "churchflow360"
+        - "--password"
+        - "mongo_secret"
+        - "--authenticationDatabase"
+        - "admin"
+        - "--eval"
+        - "db.adminCommand('ping').ok"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - churchflow360-net
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Zookeeper — required by Kafka
+  # ════════════════════════════════════════════════════════════════════════════
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: churchflow360-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - churchflow360-net
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Apache Kafka
+  # Topics auto-created on first publish:
+  #   member.registered
+  #   attendance.checked-in
+  #   event.created | event.updated | event.cancelled | event.rsvp
+  #   meeting.confirmed | meeting.cancelled | meeting.rescheduled
+  #   finance.tithe.recorded | finance.donation.received
+  #   finance.donation.receipt | finance.expense.approved | finance.expense.rejected
+  #
+  # Internal listener : kafka:9092   (service-to-service inside Docker)
+  # External listener : localhost:9093 (Spring Boot apps running on your machine)
+  # ════════════════════════════════════════════════════════════════════════════
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: churchflow360-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+    ports:
+      - "9093:9093"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - churchflow360-net
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Kafka UI — browse topics, messages and consumer groups
+  # http://localhost:9000
+  # ════════════════════════════════════════════════════════════════════════════
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: churchflow360-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: churchflow360-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "9000:8080"
+    networks:
+      - churchflow360-net
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Mailhog — local SMTP mail server for development
+  #
+  # All emails sent by member-service (welcome emails, status changes)
+  # are caught here instead of going to real inboxes.
+  #
+  # SMTP : localhost:1025  — configure spring.mail.host=localhost port=1025
+  # UI   : http://localhost:8025  — browse all received emails in browser
+  # ════════════════════════════════════════════════════════════════════════════
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: churchflow360-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP — Spring Boot services send mail here
+      - "8025:8025"   # Web UI — view received emails in browser
+    networks:
+      - churchflow360-net
+
+# ==============================================================================
+# Named volumes — data persists across container restarts
+# Run `docker compose down -v` to wipe everything and start fresh
+# ==============================================================================
+volumes:
+  postgres-data:
+    name: churchflow360-postgres-data
+  mongo-data:
+    name: churchflow360-mongo-data
+  zookeeper-data:
+    name: churchflow360-zookeeper-data
+  zookeeper-logs:
+    name: churchflow360-zookeeper-logs
+  kafka-data:
+    name: churchflow360-kafka-data
+
+# ==============================================================================
+# Shared network — all containers can reach each other by service name
+# ==============================================================================
+networks:
+  churchflow360-net:
+    name: churchflow360-net
+    driver: bridge

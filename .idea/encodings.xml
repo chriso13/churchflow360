@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/services/announcement-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/api-gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/attendance-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/auth-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/config-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/eureka-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/event-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/finance-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/member-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/notification-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/pastoral-meeting-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/prayer-request-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/services/small-groups-service/src/main/java" charset="UTF-8" />
+  </component>
+</project>

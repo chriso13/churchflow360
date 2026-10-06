@@ -1,0 +1,4 @@
+com\churchflow360\gateway\filter\AuthFilter$Config.class
+com\churchflow360\gateway\GatewayApplication.class
+com\churchflow360\gateway\controller\FallbackController.class
+com\churchflow360\gateway\filter\AuthFilter.class

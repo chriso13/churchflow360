@@ -1,0 +1,59 @@
+# ==============================================================================
+# 360 Church Flow - Eureka Server (discovery-service)
+# Local Development Configuration
+# ==============================================================================
+
+server:
+  port: 8761
+
+spring:
+  application:
+    name: discovery-service
+
+  # Pull config from Config Server if it is running.
+  # "optional:" means the app still starts if Config Server is down.
+  config:
+    import:
+      - optional:configserver:http://localhost:8888
+
+eureka:
+  instance:
+    hostname: localhost
+
+  client:
+    # THIS IS THE FIX:
+    # A standalone Eureka server must NOT register with itself
+    # and must NOT try to fetch a registry from itself.
+    # Both were true by default, causing the heartbeat loop and
+    # "Connection refused" errors you are seeing.
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+
+  server:
+    # Disable self-preservation in local dev so stale instances
+    # are evicted quickly instead of staying in the registry for 90 seconds.
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 2000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.netflix.eureka: WARN
+    com.netflix.discovery: WARN
+    org.springframework.cloud.netflix.eureka: INFO
+
+info:
+  app:
+    name: "360 Church Flow - Discovery Service"
+    version: "1.0.0"
+    description: "Service Discovery Server for 360 Church Flow Microservices"

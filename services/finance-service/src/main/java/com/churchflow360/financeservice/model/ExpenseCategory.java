@@ -1,0 +1,19 @@
+package com.churchflow360.financeservice.model;
+
+public enum ExpenseCategory {
+    FACILITIES,
+    STAFF_COMPENSATION,
+    MINISTRY_SUPPLIES,
+    TECHNOLOGY,
+    WORSHIP,
+    OUTREACH,
+    MISSIONS,
+    ADMINISTRATION,
+    FOOD_AND_HOSPITALITY,
+    TRANSPORTATION,
+    BENEVOLENCE,
+    EDUCATION,
+    MARKETING,
+    INSURANCE,
+    OTHER
+}
